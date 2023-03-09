@@ -1,0 +1,147 @@
+---
+title: "TELESUR-GDM"
+subtitle: "Plan d'analyse statistique"
+author: 
+    name : "Philippe MICHEL"
+    affiliations:
+      name: "Hôpital NOVO"
+      department: "USRC"
+lang: fr-FR
+date: today
+date-format: "DD/MM/YYYY"
+format: 
+  titlepage-pdf:
+    titlepage: bg-image
+    titlepage-bg-image: "novo_usrc.png"
+    logo-space-after: "0\\baselineskip"
+    titlepage-footer: "Dr CAMPINOS Catherine – Chef du service d’Endocrinologie-Diabétologie\\newline Pr PONCELET Christophe - Chef du Service de Gynécologie-Obstétrique\\newline Hôpital NOVO -- Site de Pontoise "
+    documentclass: scrartcl
+    classoption: ["oneside", "open=any"]
+    number-sections: true
+titlepage-theme:
+    title-fontstyle: ["huge", "bfseries"]
+    subtitle-fontstyle: ["Large"]
+    logo-size: "0.2\\textheight"
+jss-pdf:
+    keep-tex: true   
+pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: false
+lof: false
+lot: false
+mainfont: Faune
+mainfontoptions:
+  - Numbers=OldStyle
+  - Ligatures=TeX
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+fig-cap-location: bottom
+tbl-cap-location: top
+classoption: [french]
+papersize: a4paper
+editor: source
+bibliography: stat.bib
+cite-method: biblatex  
+license: "MIT"
+---
+---
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
+ fig.width = 7,
+ fig.asp = 0.8,
+ out.width = "100%"
+)
+```
+
+```{r info}
+rm(list=ls())
+library("baseph")
+library("tidyverse")
+library("kableExtra")
+# sessionInfo()
+```
+
+## Généralités
+
+Le risque $\alpha$ retenu sera de 0,05 & la puissance de 0,8.
+
+Sauf indication contraires pour les tests simples les variables numériques seront comparées par un test de Student si possible ( effectifs suffisants, distribution normales (Test de Shapiro-Wilk), égalité des variances) sinon un test non paramétrique de Wilcoxon sera utilisé. Un test du $\chi^2$ sera utilisé pour les variables discrètes sous réserve d'un effectif suffisant. À défaut un test de Fischer sera utilisé. Des graphiques seront réalisés pour les résultats importants (package `ggplot2` [@ggplot]).
+
+## Taille de l'échantillon
+ 
+Il s'agit d'une étude de non infériorité comparant deux méthode de surveillance de patientes diabétiques. La présence d'une seule complication, maternelle ou fœtale, suffit à faire classer le cas comme positif. 
+
+```{r}
+#| label: nbcas1
+
+prop1 <-  0.5
+vari <- 0.05
+tmax <- round(prop1 * (1+vari),3)
+#
+ n <- nb.noninf.ph(prop1)
+```
+
+
+Dans une étude préalable (ERD2) sur le même type de population & des critères proches on avait 31 % de patients présentant au moins une complication. On utilisera ce chiffre comme base. Une différence de 5 % sera considérée comme acceptable. On obtient donc un nombre de patients par groupe de `r floor(n *1.1)+1`. 
+
+
+
+
+## Données manquantes
+
+Le décompte des données manquantes sera réalisé & présenté par un tableau ou un graphique. Le calcul du score composite définissant le critère principal nécessite que tous les items soient renseignés. Un seul item manquant dans ce groupe fera exclure le cas de l'étude. Pour les autres variables, celles comportant trop de données manquantes ou non utilisables ne seront pas prises en compte après validation par le promoteur.
+
+Après ce premier tri une imputation des données manquantes (package `missMDA` [@miss]) sera réalisée uniquement pour l'analyse factorielle & pour la recherche du meilleur modèle par step-by-tep descendant pour les analyses par régression (logistique ou linéaire). Néanmoins pour cette analyse, après choix du modèle, le calcul final sera fait avec les données réelles. 
+
+## Description de la population
+
+### Analyse simple
+
+La description de la population concerne :
+
+Un tableau présentera les valeurs démographiques & cliniques pour l'ensemble de la population puis pour chaque groupe. Les valeurs numériques seront présentées en moyenne ± écart-type, les valeurs discrètes en % avec son intervalle de confiance à 95 %. Une différence entre les groupes sera recherchée, item par item, afin de valider au mieux l'équivalence entre les groupes.
+
+Une recherche de corrélation (package `corr` [@corr]) entre les variables sera réalisée. Si certaines variables se montreront trop corrélées deux à deux elles devront être exclues de l'étude après accord du promoteur. 
+
+### Analyse factorielle
+
+Si le nombre de cas recueillis le permet une analyse factorielle en MCA (Analyse de correspondances multiples - package `FactoMineR` [@facto]) sera réalisée afin d'essayer de définir des groupes particuliers de cas.
+
+Cette analyse ne pourra être qu'après imputation des données manquantes ce qui n'est possible que si ces dernières ne sont pas trop nombreuses.
+
+## Objectif principal
+
+Toute l'analyse sera réalisée en per-protocole. Seul un test d'équivalence par un $\chi^2$ sera réalisé en intention de traiter pour compléter le résultat principal.
+
+La comparaison des deux méthodes de suivi sera effectuée grâce à un $\chi^2$ de Dunnett-Gent [@dunnett] et présentée par un Odd-Ratio avec son intervalle de confiance à 95 %.
+ 
+
+Une analyse simple sera réalisée pour rechercher d'éventuels facteurs pronostics.
+
+
+### Analyse par régression
+
+Un modèle de régression logistique sera employé. Ce modèle de régression permettra d’explorer les facteurs associés à la réponse en utilisant les critères ayant une la réponse significative avec un seuil p.value = 0,2 lors de l'étape précédente. Une recherche du meilleur modèle sera réalisée par un step-by-step descendant évaluée par le critère d’information d’Akaike. Cette étape sera réalisée après imputation des données manquantes mais le résultat final sera calculé sur les données vraies. 
+
+## Objectifs secondaires
+
+### Proportion de chaque item
+
+Un tableau de corrélation sera d'abord réalisé reprenant tous les items afin de rechercher d'éventuels items trop proches l'un de l'autre.  Si cela devait être le ces certains items pourraient être exclus de la suite de l'étude après accord du promoteur. 
+
+Chaque item du score sera présenté en taux de cas positifs dans les deux groupes avec comparaison par un score du $\chi^2$. 
+
+### Proportion de patientes mise sous insuline
+
+La comparaison du taux de mise sous insuline entre les deux groupes sera réalisée par un test du $\chi^2$. 
+
+## Technique {.appendix}
+
+L'analyse statistique sera réalisée avec le logiciel **R**[@rstat] & divers packages. Outre ceux cités dans le texte ou utilisera en particulier `tidyverse` [@tidy] & `baseph` [@baseph].
+
+Un dépôt GitHub sera utilisé qui ne comprendra que le code & non les données ou résultats. Au besoin un faux tableau de données sera présenté pour permettre des tests.
+
+<https://github.com/philippemichel/TELESUR-GDM>
