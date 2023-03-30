@@ -2,10 +2,18 @@
 title: "TELESUR-GDM"
 subtitle: "Plan d'analyse statistique"
 author: 
-    name : "Philippe MICHEL"
-    affiliations:
-      name: "Hôpital NOVO"
-      department: "USRC"
+    - name: "Dr Philippe MICHEL"
+      affiliations:
+        name: "Hôpital NOVO"
+        department: "Unité de Soutien à la Recherche Clinique"
+    - name:  "Pr Christophe PONCELET"
+      affiliations:
+        name: "Hôpital NOVO -- Site Pontoise"
+        department: "Service de Gynécologie-Obstétrique "
+    - name:  "Dr Catherine CAMPINOS"
+      affiliations:
+        name: "Hôpital NOVO -- Site Pontoise"
+        department: "Service d’Endocrinologie-Diabétologie"
 lang: fr-FR
 date: today
 date-format: "DD/MM/YYYY"
@@ -14,22 +22,29 @@ format:
     titlepage: bg-image
     titlepage-bg-image: "novo_usrc.png"
     logo-space-after: "0\\baselineskip"
-    titlepage-footer: "Dr CAMPINOS Catherine – Chef du service d’Endocrinologie-Diabétologie\\newline Pr PONCELET Christophe - Chef du Service de Gynécologie-Obstétrique\\newline Hôpital NOVO -- Site de Pontoise "
-    documentclass: scrartcl
+    documentclass: scrreprt
     classoption: ["oneside", "open=any"]
     number-sections: true
+    titlepage-footer: "La télésurveillance glycémique du diabète gestationnel via l’application *MyDiabby* vs le suivi classique par le carnet patient\\newline Étude rétrospective monocentrique"
 titlepage-theme:
-    title-fontstyle: ["huge", "bfseries"]
-    subtitle-fontstyle: ["Large"]
+    title-fontstyle: ["Huge", "bfseries"]
+    title-color: novo
+    subtitle-color: novo
+    subtitle-fontstyle: ["huge"]
     logo-size: "0.2\\textheight"
+    vrule-width: "0.1cm"
+    vrule-color: novo
+include-in-header:
+      text: |
+        \definecolor{novo}{HTML}{27484b}
 jss-pdf:
     keep-tex: true   
 pdf-engine: lualatex
 keep-tex: true
 number-sections: true
-toc: false
-lof: false
-lot: false
+toc: true
+lof: true
+lot: true
 mainfont: Faune
 mainfontoptions:
   - Numbers=OldStyle
@@ -43,9 +58,11 @@ classoption: [french]
 papersize: a4paper
 editor: source
 bibliography: stat.bib
-cite-method: biblatex  
-license: "MIT"
----
+cite-method: biblatex
+csl: jama.csl
+#reference-location: margin
+#citation-location: margin
+license: "CC BY-SA"
 ---
 
 ```{r setup, include= FALSE}
@@ -79,9 +96,9 @@ Il s'agit d'une étude de non infériorité comparant deux méthode de surveilla
 
 prop1 <-  0.5
 vari <- 0.05
-tmax <- round(prop1 * (1+vari),3)
-#
- n <- nb.noninf.ph(prop1)
+    tmax <- round(prop1 * (1+vari),3)
+    #
+ n <- nb.noninf.ph(prop1, dl = 0.1)
 ```
 
 
