@@ -1,0 +1,97 @@
+---
+title: "TELESUR-GDM"
+subtitle: "Rapport Statistique -- V1.0"
+author: 
+    - name: "Dr Philippe MICHEL"
+      affiliations:
+        name: "Hôpital NOVO"
+        department: "Unité de Soutien à la Recherche Clinique"
+format: 
+  titlepage-pdf:
+    titlepage: bg-image
+    titlepage-bg-image: "novo_usrc.png"
+    logo-space-after: "0\\baselineskip"
+    documentclass: scrreprt
+    classoption: ["oneside", "open=any, french"]
+    number-sections: true
+    titlepage-footer: "- **Pr Christophe PONCELET** -- Service de Gynécologie-Obstétrique -- Hôpital NOVO (Site Pontoise)\\newline - **Dr Catherine CAMPINOS** -- Service d'Endocrinologie - Diabétologie  -- Hôpital NOVO (Site Pontoise)\\newline Télésurveillance glycémique du diabète gestationnel via l’application *MyDiabby* vs le suivi classique par le carnet patient\\newline Étude rétrospective monocentrique\\newline \\today"
+titlepage-theme:
+    title-fontstyle: ["Huge", "bfseries"]
+    title-color: novo
+    subtitle-color: novo
+    subtitle-fontstyle: ["huge"]
+    logo-size: "0.2\\textheight"
+    vrule-width: "0.1cm"
+    vrule-color: novo
+include-in-header:
+      text: |
+        \definecolor{novo}{HTML}{27484b}
+        \usepackage{babel}
+jss-pdf:
+    keep-tex: true   
+pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: true
+lof: true
+lot: true
+mainfont: Faune
+mainfontoptions:
+  - Numbers=OldStyle
+  - Ligatures=TeX
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+fig-cap-location: bottom
+tbl-cap-location: top
+classoption: [french]
+papersize: a4paper
+editor: source
+bibliography: stat.bib
+cite-method: biblatex
+csl: jama.csl
+#reference-location: margin
+#citation-location: margin
+license: "CC BY-SA"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE) 
+expx <- FALSE
+classeur <- "outmedic1.xls"
+```
+
+```{r}
+#| label: lib
+
+library(baseph)
+library(janitor)
+library(corrplot)
+library(missMDA)
+library(tidyverse)
+library(lubridate)
+library(labelled)
+library(kableExtra)
+library(forestmodel)
+library(epiDisplay)
+library(confintr)
+library(missMDA)
+library(colorspace)
+library(visdat)
+library(gtsummary)
+library(FactoMineR)
+library(factoextra)
+```
+
+```{r}
+#| label: import
+bno <- read_csv("datas/bnom.csv")
+tt <- debutph("datas/prov.csv",bno$nom) |> 
+  mutate(imccalcul = bmiph(imccalcul,lang = "eng" )) |> 
+  mutate(deltapoids = fingrospds - pds) |> 
+  relocate(deltapoids, .after = fingrospds)
+
+var_label(tt$deltapoids) <- "Prise de poids pendant la grossesse"
+```
+
