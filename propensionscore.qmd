@@ -1,0 +1,142 @@
+---
+title: "propension"
+author: "Philippe MICHEL"
+format: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE) 
+```
+
+```{r}
+#| label: lib
+
+library(MatchIt)
+library(optmatch)
+library(RItools)
+library(epiR)
+library(gtsummary)
+library(baseph)
+library(labelled)
+library(tidyverse)
+library(missMDA)
+```
+
+
+```{r}
+#| label: import
+bno <- read_csv("datas/bnom.csv")
+nax <- c("NA","na","NK","","A","K", "Non disponible")
+
+ttf <- read_csv("datas/FACTRISK.csv",na = nax)
+ttr <- read_csv("datas/CRACCT.csv",na = nax)
+ttc <- read_csv("datas/COMPLICATIONS.csv",na = nax)
+tt <- left_join(ttf,ttr,by = "SUBJID")
+tt <- left_join(tt,ttc,by = "SUBJID") |> 
+      mutate_if(is.character, as.factor) |>
+    janitor::clean_names() |> 
+  drop_na(accdte) |> 
+  drop_na(23:33) |> 
+  dplyr::select(-hospiton)
+
+var_label(tt) <- bno$nom
+
+  tt$imccalcul = bmiph(tt$imccalcul,lang = "eng" )
+#
+tt <-  tt |> 
+   mutate(deltapoids = fingrospds - pds) |> 
+  relocate(deltapoids, .after = fingrospds) |> 
+mutate(suivi = as.factor(ifelse(as.numeric(str_sub(tt$accdte, -2))>18,"Application", "Papier")))
+## Réordonnancement de tt$suivi
+tt$suivi <- tt$suivi %>%
+  fct_relevel(
+    "Papier", "Application"
+  )
+ 
+var_label(tt$deltapoids) <- "Prise de poids pendant la grossesse"
+var_label(tt$imccalcul) <- "BMI"
+
+tt <- tt |> 
+  dplyr::select(-c(accdte,accttermjrs)) |> 
+  mutate(terme = if_else(accttermsa<37,"Prématuré","À terme"))
+var_label(tt$terme) <- "Terme"
+
+## Recodage de tt$parit en tt$parit
+tt$parit <- cut(tt$parit,
+  include.lowest = TRUE,
+  right = TRUE,
+  dig.lab = 1,
+  breaks = c(0, 1, 2, 3, 10),
+  labels = c("1","2","3","4 et +")
+)
+var_label(tt$parit) <- "Parité"
+```
+
+```{r}
+#| label: critp-prep
+
+comp <- c("hta","cesaron","extracton","traumaton","preeclampon","macroson",  "rciuon","apgaron","mfiuon","hypoglicon","hypocalcon","acidoson","dystocon","fracton", "icteron")
+ttc <- tt |> 
+ dplyr::select(comp) |> 
+  mutate_all(as.numeric)
+tt$complication <- as.factor(ifelse(rowSums(ttc) == 15, "Pas de complication","Complication"))
+## Réordonnancement de tt$complication
+tt$complication <- tt$complication %>%
+  fct_relevel(
+    "Pas de complication", "Complication"
+  )
+
+var_label(tt$complication) <- "complications - Total"
+```
+
+```{r}
+#| label: imput
+
+ttc <- imputeFAMD(tt,0)
+tt <- as_tibble(ttc$completeObs)
+```
+
+
+
+
+## Score de propension
+
+### Calcul du score
+
+```{r}
+#| label:  propcalc1
+#| tbl-cap: Score de propension
+
+ll <- glm(suivi ~ ddgage + imccalcul + diabgeston+ macrosatcdon + parit  + terme  + complication, data = tt, family = "binomial")
+  tbl_regression(ll, exponentiate = TRUE) |> 
+      bold_p() |> 
+      add_global_p()
+zz <- round(mean(ll$fitted.values),3)
+```
+Le score de propension sur ce modèle est de `r zz`.
+
+### Modèle du plus proche voisin
+
+```{r}
+#| label: prochevoisin
+
+rmm <- matchit(formula = complication ~ ddgage +  diabgeston+ macrosatcdon + parit  + terme , method = "nearest",data=tt, caliper = 0.17)
+rmmt <- match.data(rmm)
+
+tt |>
+  dplyr::select(suivi, ddgage, diabgeston, macrosatcdon, parit, terme, complication) |> 
+  tbl_summary(by = complication) |> 
+      modify_header(label ~ " ") %>%
+  bold_labels() |> 
+#  add_overall(col_label = "**Total**, N = {N}") %>%
+  add_n() |> 
+  add_p() |> 
+  bold_p()
+```
+
+```{r}
+glm(complication ~ suivi +ddgage + imccalcul + diabgeston+ macrosatcdon + parit  + terme , data= rmmt, family = "binomial") |> 
+  tbl_regression()
+
+```
+

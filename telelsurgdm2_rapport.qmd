@@ -1,6 +1,6 @@
 ---
-title: "TELESUR-GDM"
-subtitle: "Rapport Statistique -- V1.1"
+title: "TELESUR-GDM 2"
+subtitle: "Rapport Statistique -- v1.0"
 author: 
   - name: "Dr Philippe MICHEL"
    affiliations:
@@ -147,11 +147,11 @@ var_label(tt$parit) <- "Parité"
 # Complications
 #
 
-comp <- c("hta","cesaron","extracton","traumaton","preeclampon","macroson",  "rciuon","apgaron","mfiuon","hypoglicon","hypocalcon","acidoson","dystocon","fracton",  "icteron")
+comp <- c("hta","cesaron","extracton","traumaton","preeclampon","macroson",  "rciuon","apgaron","mfiuon","hypoglicon","hypocalcon","acidoson","dystocon","fracton")
 ttc <- tt |> 
  dplyr::select(comp) |> 
  mutate_all(as.numeric)
-tt$complication <- as.factor(ifelse(rowSums(ttc) == 15, "Pas de complication","Complication"))
+tt$complication <- as.factor(ifelse(rowSums(ttc) == 14, "Pas de complication","Complication"))
 ## Réordonnancement de tt$complication
 tt$complication <- tt$complication |> 
  fct_relevel(
@@ -161,6 +161,29 @@ tt$complication <- tt$complication |>
 var_label(tt$complication) <- "Score de complications"
 var_label(tt$ddgage) <- "Âge > 35 ans"
 ```
+
+Les critères de gravité retenus sont :
+
+Pour la mère : 
+
+ - HTA
+ - Césarienne
+ - Extraction instrumentale
+ - Traumatismes périnéaux
+ - Pré-éclampsie
+
+Pour l'enfant : 
+
+- Macrosomie
+- Retard de croissance Intra-utérin
+- APGAR à 5 min < 7
+- Mort fœtale in utero
+- Hypoglycémie néonatale
+- Hypocalcémie néonatale
+- Acidose néonatale : ph < 7,10 et lactates > 6 μmol/l
+- Dystocie des épaules
+- Fracture de clavicule, plexus brachial
+
 
 ## Contrôle des données
 
@@ -314,9 +337,8 @@ tt |>
 
 ## Critère principal
 
-Le critère est la présence d'au moins un critère présent parmi les 15 items étudiés.
+Le critère est la présence d'au moins un critère de gravité présent parmi les 14 étudiés.
 
-### Test de Dunnett-Gent  
 
 ```{r}
 #| label: tabcrit1
@@ -334,30 +356,6 @@ tt |>
 ```
 
 
-
-```{r}
-#| label: dunnett
-zz <- table(tt$complication,tt$suivi)
-#
-on <- zz[1,2]
-or <- zz[1,1]
-o <- on +or
-nn <- zz[1,2] + zz[2,2]
-nr <- zz[1,1] + zz[2,1]
-n <- nn+nr
-dl <- -0.1
-#
-pn <- (o +nn*dl)/n
-pr <- (o - nr*dl)/n
-en <- pn*nn
-er <- pr*nr
-zz <- (on-en)^2/en + (or-er)^2/er + (on-en)^2/(nn-en) + (or -er)^2/(nr-er)
-zz <- beaup(1 -pchisq(zz,1),affp = 1)
-
-```
-Le test de Dunnett-Gent est un $\chi^2$ corrigé pour les études en non infériorité. On estime la marge d'infériorité acceptable à 10 %. `r zz`, la non-infériorité et donc prouvée (il s'agit d'un test de non infériorité, l'hypothèse H0 *L'application fait moins bien (plus de complication=* est rejetée.)
-
-### Analyse en supériorité
 
 ```{r}
 #| label: crit1or

@@ -1,0 +1,359 @@
+---
+title: "TELESUR-GDM"
+subtitle: "Rapport Statistique -- Final"
+format:
+  docx:
+    toc: true
+    number-sections: true
+    highlight-style: github
+author: "Dr Philippe MICHEL"
+bibliography: stat.bib
+cite-method: biblatex
+csl: jama.csl
+#reference-location: margin
+#citation-location: margin
+license: "CC BY-SA"
+prefer-html: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE) 
+expx <- FALSE
+classeur <- "telesurgdm1.xls"
+```
+
+```{r}
+#| label: lib
+
+library(baseph)
+library(janitor)
+library(corrplot)
+library(tidyverse)
+library(lubridate)
+library(labelled)
+library(kableExtra)
+library(forestmodel)
+library(epiDisplay)
+library(confintr)
+library(missMDA)
+library(colorspace)
+library(visdat)
+library(gtsummary)
+library(FactoMineR)
+library(factoextra)
+```
+
+```{r}
+#| label: import
+#| 
+bno <- read_csv("datas/bnom.csv")
+nax <- c("NA","na","NK","","A","K", "Non disponible")
+
+erreur <- read_csv("datas/erreur.csv")
+erreur <- erreur[[1]]
+ttf <- read_csv("datas/FACTRISK.csv",na = nax)
+ttr <- read_csv("datas/CRACCT.csv",na = nax)
+ttc <- read_csv("datas/COMPLICATIONS.csv",na = nax)
+tt <- left_join(ttf,ttr,by = "SUBJID")
+tt <- left_join(tt,ttc,by = "SUBJID") |> 
+  mutate_if(is.character, as.factor) |>
+  janitor::clean_names() |>  
+  drop_na(accdte) |> 
+  drop_na(23:33) |> 
+  dplyr::select(-hospiton)
+
+zz <- which(tt$subjid %in% erreur)
+  tt <-  tt |> 
+   filter(tt$subjid != tt$subjid[zz])
+  tt$imccalcul = bmiph(tt$imccalcul,lang = "eng" )
+#
+  var_label(tt) <- bno$nom
+#
+tt <- tt |>   
+mutate(suivi = as.factor(ifelse(as.numeric(str_sub(tt$accdte, -2))>18,"Application", "Papier")))
+  
+tt$suivi <- tt$suivi %>%
+  fct_relevel(
+    "Papier", "Application"
+  )
+tt <- tt |> 
+  mutate(accdte = dmy(accdte)) |> 
+  mutate(ddn = dmy(ddn)) |> 
+  mutate(age = (as.numeric(accdte-ddn)-287)/365.25) |> 
+  mutate(ddgage = if_else(age>35,"Oui", "Non")) |> 
+  dplyr::select(-ddn)
+
+
+
+var_label(tt$imccalcul) <- "BMI"
+
+tt <- tt |> 
+  dplyr::select(-c(accdte,accttermjrs)) |> 
+  mutate(terme = if_else(accttermsa<37,"Prématuré","À terme"))
+var_label(tt$terme) <- "Terme"
+
+## Recodage de tt$parit en tt$parit
+tt$parit <- cut(tt$parit,
+  include.lowest = TRUE,
+  right = TRUE,
+  dig.lab = 1,
+  breaks = c(0, 1, 2,  10),
+  labels = c("1","2","3 et +")
+)
+var_label(tt$parit) <- "Parité"
+
+#
+# Complications
+#
+ttc <- tt |> 
+  dplyr::select(hta,cesaron,extracton,traumaton, preeclampon, macroson, rciuon, apgaron, mfiuon, hypoglicon, hypocalcon, acidoson, dystocon, fracton, icteron) |> 
+  mutate_all(as.numeric)
+tt$complication <- as.factor(ifelse(rowSums(ttc) == 15, "Pas de complication","Complication"))
+## Réordonnancement de tt$complication
+tt$complication <- tt$complication |> 
+  fct_relevel(
+    "Pas de complication", "Complication"
+  )
+
+var_label(tt$complication) <- "Score de complications"
+```
+## Contrôle des données
+
+L'échantillon comporte `r nrow(tt)` cas pour `r ncol(tt)` variables.
+
+### Données manquantes
+
+Par définition les variables *Complications* n'ont pas de donnés manquantes & ne sont donc pas représentées sur ce graphique.
+
+```{r}
+#| label: manq
+#| fig-cap: Données manquantes
+
+tt |> 
+  dplyr::select(c(2:1,34)) |> 
+vis_miss(show_perc_col = TRUE)
+```
+
+La variable *poids de fin de grossesse* est quasiment absent pour tout le suivi dans le groupe `application` donc a été inutilisable. 
+
+## Description de la population
+
+### La mère
+
+```{r}
+#| label: descmere
+#| tbl-cap: Tableau descriptif -- Parturiente
+
+# options(OutDec = ",") 
+tt |> 
+  dplyr::select(2:10,12,32,33) |> 
+  tbl_summary(by = suivi,missing = "no",    statistic = list(
+      all_continuous() ~ "{mean} ({sd})"
+    )) |> 
+    modify_header(label ~ " ") %>%
+  bold_labels() |> 
+  add_overall(col_label = "**Total**, N = {N}") %>%
+  add_n() |> 
+  add_p( test = list(all_continuous() ~ "t.test", all_categorical() ~ "chisq.test")) |> 
+  bold_p() |> 
+  gexptabph(lg = FALSE, exp = expx, nomfich = classeur, nomsheet = "descmere")
+```
+
+### L'accouchement
+
+```{r}
+#| label: descaccouch
+#| tbl-cap: Tableau descriptif -- Accouchement
+
+tt |>
+  dplyr::select(13:18,32,34) |>
+  tbl_summary(by = suivi,missing = "no",    statistic = list(
+      all_continuous() ~ "{mean} ({sd})"
+    )) |> 
+    modify_header(label ~ " ") %>%
+  bold_labels() |> 
+  add_overall(col_label = "**Total**, N = {N}") |> 
+  add_n() |> 
+  add_p( test = list(all_continuous() ~ "t.test", all_categorical() ~ "chisq.test")) |>  
+  bold_p() |> 
+  gexptabph(
+    lg = FALSE,
+    exp = expx,
+    nomfich = classeur,
+    nomsheet = "desaccouch"
+  )
+
+```
+
+
+
+## Critère principal
+
+Le critère est la présence d'au moins un critère présent parmi les 15 items étudiés.
+
+### Test de Dunnett-Gent   
+
+```{r}
+#| label: tabcrit1
+#| tbl-cap: Suivi & complications
+
+tt |> 
+  tbl_cross(complication, suivi, percent = "column") |> 
+    bold_labels() |> 
+  gexptabph(
+    lg = FALSE,
+    exp = expx,
+    nomfich = classeur,
+    nomsheet = "crit1"
+  )
+```
+
+
+
+```{r}
+#| label: dunnett
+zz <- table(tt$complication,tt$suivi)
+#
+on <- zz[1,2]
+or <- zz[1,1]
+o <- on +or
+nn <- zz[1,2] + zz[2,2]
+nr <- zz[1,1] + zz[2,1]
+n <- nn+nr
+dl <- -0.1
+#
+pn <- (o +nn*dl)/n
+pr <- (o - nr*dl)/n
+en <- pn*nn
+er <- pr*nr
+zz <- (on-en)^2/en + (or-er)^2/er + (on-en)^2/(nn-en) + (or -er)^2/(nr-er)
+zz <- beaup(1 -pchisq(zz,1),affp = 1)
+
+```
+Le test de Dunnett-Gent est un $\chi^2$ corrigé pour les études en non infériorité. On estime la marge d'infériorité acceptable à 10 %. `r zz`,  la non-infériorité et donc prouvée (il s'agit d'un test de non infériorité, l'hypothèse H0 *L'application fait moins bien (plus de cmplications) que le suivi de régférence* est rejetée.)
+
+
+### Analyse en supériorité
+
+```{r}
+#| label: crit1or
+#| fig-cap: Complication vs suivi - Odd-Ratio
+
+cc(tt$complication,tt$suivi, design = "cohort", main = "présence de complications vs type de suivi", xlab = "Suivi", ylab = "Complications")
+```
+
+
+#### Par facteur
+
+On recherche d'autres critères pouvant être liés à la présence de complications. Par construction, tous les items définis comme *complication* ne peuvent pas être pris en compte comme facteur de risque. 
+
+```{r}
+#| label: crti1simple
+#| tbl-cap: Critères de gravité & complications
+
+tt |>
+  dplyr::select(3, 6:10, 12, 32, 34,35) |>
+  tbl_summary(by = complication, missing = "no", statistic = list(
+      all_continuous() ~ "{mean} ({sd})"
+    )) |> 
+  modify_header(label ~ " ") %>%
+  bold_labels() |>
+  add_n() |>
+  add_p( test = list(all_continuous() ~ "t.test", all_categorical() ~ "chisq.test")) |> 
+  bold_p() |>
+  gexptabph(
+    lg = FALSE,
+    exp = expx,
+    nomfich = classeur,
+    nomsheet = "critgrav"
+  )
+```
+
+L'âge supérieur à 35 ans, l'IMC, la parité & le traitement par insuline semblent être des facteurs de risque de complication & seront pris en compte dans l'analyse par régression ainsi que le terme (p = 0,06). 
+
+
+```{r}
+#| label: crit1multi
+#| tbl-cap: Critères de gravité & complications -- Régression
+
+ll <-  glm(complication~ suivi + ddgage + imccalcul + parit + insulon+  terme, data = tt, family = binomial)
+ll |> 
+  tbl_regression(exponentiate = TRUE) |> 
+  bold_labels() |>
+  bold_p() |> 
+  pexptabph(lg = FALSE, exp = expx, nomfich = classeur, nomsheet = "regression")
+```
+
+```{r}
+#| label: multifig
+#| fig-cap: Critères de gravité & complications -- Régression
+#| fig-asp: 1
+
+forest_model(ll,factor_separate_line = TRUE) +
+  theme(
+      text = element_text(size = 16),
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      strip.text.x = element_text(size = 12)
+  ) +
+      labs(title = "Facteurs de risque")
+```
+
+
+
+## Critères secondaires
+
+### Proportion de chaque item
+
+```{r}
+#| label: critptab
+#| tbl-cap: Présentation des complications individuellement vs le suivi
+
+tt |> 
+  dplyr::select(c(32,14,16,19:31)) |> 
+  tbl_summary(by = suivi, missing = "no", statistic = list(
+      all_continuous() ~ "{mean} ({sd})"
+    )) |>
+    modify_header(label ~ " ") %>%
+  bold_labels() |> 
+  add_n() |> 
+  add_p( test = list(all_continuous() ~ "t.test", all_categorical() ~ "chisq.test")) |> 
+  bold_p() |> 
+  gexptabph(lg = FALSE, exp = expx, nomfich = classeur, nomsheet = "compli_ind")
+```
+
+### Proportion de patientes mise sous insuline
+
+```{r}
+#| label: insul
+#| tbl-cap: Proportion de patientes mises sous insuline par groupe
+
+tt |> 
+  dplyr::select(insulon,suivi) |> 
+  tbl_cross(percent = "column") |> 
+    bold_labels() |> 
+  add_p() |> 
+  bold_p() |> 
+  gexptabph(lg = FALSE, exp = expx, nomfich = classeur, nomsheet = "insuline")
+```
+
+Le type de suivi ne semble pas influer sur la mise sous insuline. 
+
+## Technique {.appendix}
+
+L’analyse du critère principal a été réalisée en per-protocole. Seul un test d’équivalence par un $\chi^2$ a été réalisé en intention de traiter pour compléter le résultat principal.
+
+La comparaison des deux méthodes de suivi a été effectuée grâce à un χ2 de Dunnett-Gent & présentée par un Odd-Ratio avec son intervalle de confiance à 95 %.
+
+Une analyse simple a été réalisée pour rechercher d'éventuels facteurs pronostics.
+
+Les données discrètes ont été présentées en pourcentage puis comparées par un test exact du $\chi^2$. Les données numériques ont été présentées par leur moyenne  & l'écart-type puis comparées par le test du t de Student après vérification de l'égalité de variance. 
+
+Un modèle de régression logistique a été employé. Ce modèle de régression a été limité aux facteurs associés à la réponse en utilisant les critères ayant une la réponse significative avec un seuil p.value = 0,2 lors de l’étape précédente. Une recherche du meilleur modèle a été réalisée par un step-by-step descendant évaluée par le critère d’information d’Akaike.
+
+Cette étape a été réalisée après imputation des données manquantes mais le résultat final a été calculé sur les données vraies.
+
+L'analyse statistique a été réalisée avec le logiciel **R** [@rstat] & diverses librairies en particulier celles du `tidyverse` [@tidy] & `baseph` [@baseph].
