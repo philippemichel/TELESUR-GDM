@@ -1,57 +1,18 @@
 ---
 title: "TELESUR-GDM"
-subtitle: "Rapport Statistique -- Compléments"
+subtitle: "Rapport Statistique -- Compléments V3"
 author: 
   - name: "Dr Philippe MICHEL"
     affiliations:
       name: "Hôpital NOVO"
       department: "Unité de Soutien à la Recherche Clinique"
 lang: fr
-format: 
- titlepage-pdf:
-  titlepage: bg-image
-  titlepage-bg-image: "novo_usrc.png"
-  logo-space-after: "0\\baselineskip"
-  documentclass: scrreprt
-  classoption: ["oneside", "open=any, french"]
-  number-sections: true
-  titlepage-footer: "- **Pr Christophe PONCELET** Service de Gynécologie-Obstétrique -- Hôpital NOVO (Site Pontoise)\\newline - **Dr Catherine CAMPINOS** Service d'Endocrinologie - Diabétologie -- Hôpital NOVO (Site Pontoise)\\newline \\newline Télésurveillance glycémique du diabète gestationnel via l’application *MyDiabby©* vs le suivi classique par le carnet patient\\newline Étude rétrospective monocentrique\\newline \\today"
-titlepage-theme:
-  title-fontstyle: ["Huge", "bfseries"]
-  title-color: novo
-  subtitle-color: novo
-  subtitle-fontstyle: ["huge"]
-  logo-size: "0.2\\textheight"
-  vrule-width: "0.1cm"
-  vrule-color: novo
-include-in-header:
-   text: |
-    \definecolor{novo}{HTML}{27484b}
-    \usepackage{siunitx}
-    \mathcode`\.="013B 
-jss-pdf:
-  keep-tex: true  
-pdf-engine: lualatex
-keep-tex: true
+format: docx
 number-sections: true
-toc: true
-lof: true
-lot: true
-mainfont: Faune
-mainfontoptions:
- - Numbers=OldStyle
- - Ligatures=TeX
-sansfont: Myriad Pro
-sansfontoptions:
- - Ligatures=TeX
+prefer-html: true
 fig-cap-location: bottom
 tbl-cap-location: top
-classoption: [french]
-papersize: a4paper
 editor: source
-bibliography: stat.bib
-cite-method: biblatex
-csl: jama.csl
 #reference-location: margin
 #citation-location: margin
 license: "CC BY-SA"
@@ -192,11 +153,13 @@ Une autre approche aurait été de prendre l'intervalle de confiance à 95 % du 
 Dans tous les cas on est large en nombre de cas. 
 
 
-# Analyse multivariée
 
-## Complications
+
+# Complications
 
 On refait l'analyse multivariée en prenant en compte tous les critères de gravités potentiels ayant une p-value < 20 % sans recherche du meilleur modèle donc un résultat moins précis mais qui plaira au rewriter. 
+ 
+## Analyse simple
 
 ```{r}
 #| label: complicc
@@ -204,6 +167,7 @@ On refait l'analyse multivariée en prenant en compte tous les critères de grav
 cc(tt$complication,tt$suivi, xlab = "Méthode de suivi", ylab = "Complication", main = "Présence d'au moins une complication selon la méthode de suivi", design = "cohort")
 ```
 
+## Analyse multivariée (régression) 
 
 ```{r}
 #| label: tbl-multicomp
@@ -215,7 +179,10 @@ glm(complication ~ suivi + ddgage + imccalcul + diabgeston + macrosatcdon + pari
     pexptabph(nomsheet = "complications", nomfich = classeur, exp = expx)
 ```
 
-## Hypoglycémie
+# Hypoglycémie
+
+
+## Analyse simple
 
 ```{r}
 #| label: hypocc
@@ -223,6 +190,9 @@ glm(complication ~ suivi + ddgage + imccalcul + diabgeston + macrosatcdon + pari
 cc(tt$hypoglicon,tt$suivi, xlab = "Méthode de suivi", ylab = "Hypoglycémie néo-natale", main = "Présence d'une hypoglycémie selon la méthode de suivi", design = "cohort")
 ```
 
+
+
+## Analyse multivariée (régression) 
 
 Pour l'hypoglycémie le résultat est simple : seul le mode de suivi semble avoir un impact sur la survenue d'une hypoglycémie.
 
@@ -236,3 +206,46 @@ glm(hypoglicon ~ suivi + ddgage + imccalcul + diabgeston + macrosatcdon + parit 
     bold_p() |>
     pexptabph(nomsheet = "hypogly", nomfich = classeur, exp = expx)
 ```
+
+# Ictère
+
+## Analyse simple
+
+```{r}
+#| label: icterec
+
+cc(tt$icteron,tt$suivi, xlab = "Méthode de suivi", ylab = "Ictère", main = "Survenue d'un ictère selon la méthode de suivi", design = "cohort")
+```
+
+## Analyse multivariée (régression) 
+
+```{r}
+#| label: tbl-ictere
+#| tbl-cap: "Ictère : critères confondants"
+
+glm(icteron ~ suivi + ddgage + imccalcul + diabgeston + macrosatcdon + parit + fingrospds, data = tt, family = "binomial") |>
+    tbl_regression(exponentiate = TRUE) |>
+    bold_labels() |>
+    bold_p() |>
+    pexptabph(nomsheet = "ictere", nomfich = classeur, exp = expx)
+```
+
+# Hypoglycémie & Ictère
+
+```{r}
+
+#| label: tbl-hypoict 
+#| fig-cap: Hypoglycémie & Ictère
+
+glm(suivi ~ hypoglicon* icteron, data = tt, family = "binomial") |>
+    tbl_regression(exponentiate = TRUE) |>
+    bold_labels() |>
+    bold_p() |>
+    pexptabph(nomsheet = "hypogly_ictere", nomfich = classeur, exp = expx)
+```
+
+Il n'y a pas de facteur de confusion entre hypoglycémie & ictère. 
+
+
+
+
